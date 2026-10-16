@@ -1,0 +1,30 @@
+# CI for the public SDK repo (github.com/Mailmanny/mailmanny-node). This file is written in the private app repo at
+# packages/mailmanny/.github/ and mirrored here; it never runs in the private repo.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run smoke
+      - run: npm pack --dry-run

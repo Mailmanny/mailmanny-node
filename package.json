@@ -1,0 +1,81 @@
+{
+  "name": "mailmanny",
+  "version": "0.1.0",
+  "description": "Official Node.js SDK and CLI for Mailmanny: send React Email, grow audiences, push templates.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "mailmanny": "./dist/esm/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@react-email/render": ">=1.0.0",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "@react-email/render": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@react-email/render": "^2.1.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "typescript": "^5"
+  },
+  "keywords": [
+    "email",
+    "react-email",
+    "transactional-email",
+    "newsletter",
+    "mailchimp",
+    "resend",
+    "mailmanny",
+    "sdk",
+    "cli"
+  ],
+  "homepage": "https://www.mailmanny.com/docs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mailmanny/mailmanny-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Mailmanny/mailmanny-node/issues"
+  }
+}
