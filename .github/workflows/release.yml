@@ -1,7 +1,12 @@
-# Publishes `mailmanny` to npm when package.json carries a version that isn't on npm yet, then tags it and opens a
-# GitHub release. Uses npm trusted publishing (OIDC): no npm token is stored anywhere, and npm attaches a provenance
-# attestation linking the package to this workflow run. Configure it once on npmjs.com → mailmanny → Settings →
-# Trusted publishing: GitHub Actions, organization "Mailmanny", repository "mailmanny-node", workflow "release.yml".
+# Publishes `mailmanny` to npm automatically on every push to main that changes the SDK, then tags the release and opens
+# a GitHub release (owner: "automate push to main to update it"). How the version is chosen:
+#   - package.json's version is higher than npm's latest → publish that version (a manual minor/major bump);
+#   - otherwise, if anything but .github/ changed since the last release tag → publish npm's latest + 1 patch
+#     (package.json is bumped in this run only; the build writes src/version.ts from it);
+#   - otherwise → nothing to release.
+# Uses npm trusted publishing (OIDC): no npm token is stored anywhere, and npm attaches a provenance attestation linking
+# the package to this workflow run. Configured on npmjs.com → mailmanny → Settings → Trusted publishing: GitHub Actions,
+# organization "Mailmanny", repository "mailmanny-node", workflow "release.yml".
 # Written in the private app repo at packages/mailmanny/.github/ and mirrored here; it never runs in the private repo.
 name: Release
 
@@ -23,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release tags, to see what changed since the last one
 
       - uses: actions/setup-node@v4
         with:
@@ -32,23 +39,35 @@ jobs:
       # Trusted publishing needs npm 11.5.1 or later.
       - run: npm install -g npm@latest
 
-      - name: Is this version already on npm?
+      - name: Decide the version
         id: version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if ! npm view mailmanny name >/dev/null 2>&1; then
-            # npm can only trust this workflow for a package that exists: the very first version is published by hand
-            # (docs/SDK-RELEASE.md in the private repo). Until then, skip instead of failing.
+          PKG=$(node -p "require('./package.json').version")
+          LATEST=$(npm view mailmanny version 2>/dev/null || true)
+          if [ -z "$LATEST" ]; then
+            # npm can only trust this workflow for a package that exists: the very first version is published by hand.
             echo "publish=false" >> "$GITHUB_OUTPUT"
             echo "::notice::mailmanny isn't on npm yet. Publish the first version by hand, then set up trusted publishing."
-          elif npm view "mailmanny@$VERSION" version >/dev/null 2>&1; then
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            echo "mailmanny@$VERSION is already on npm; nothing to release."
-          else
-            echo "publish=true" >> "$GITHUB_OUTPUT"
-            echo "Releasing mailmanny@$VERSION."
+            exit 0
           fi
+          # Is package.json's version higher than npm's? (plain x.y.z comparison)
+          HIGHER=$(node -e 'const p=(s)=>s.split("-")[0].split(".").map(Number);const [a,b]=[p(process.argv[1]),p(process.argv[2])];for(let i=0;i<3;i++){if(a[i]!==b[i]){console.log(a[i]>b[i]?"yes":"no");process.exit(0)}}console.log("no")' "$PKG" "$LATEST")
+          if [ "$HIGHER" = "yes" ]; then
+            VERSION="$PKG"
+            echo "package.json asks for $VERSION (npm has $LATEST)."
+          else
+            LAST_TAG="v$LATEST"
+            if git rev-parse -q --verify "refs/tags/$LAST_TAG" >/dev/null && git diff --quiet "$LAST_TAG" HEAD -- . ':(exclude).github'; then
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "Nothing in the SDK changed since $LAST_TAG; nothing to release."
+              exit 0
+            fi
+            VERSION=$(node -e 'const [x,y,z]=process.argv[1].split("-")[0].split(".").map(Number);console.log(`${x}.${y}.${z+1}`)' "$LATEST")
+            npm version "$VERSION" --no-git-tag-version --allow-same-version >/dev/null
+            echo "The SDK changed since $LATEST: releasing $VERSION (automatic patch)."
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
 
       - if: steps.version.outputs.publish == 'true'
         run: npm install --no-audit --no-fund
