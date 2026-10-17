@@ -1,6 +1,6 @@
 # mailmanny
 
-The official Node.js SDK and CLI for [Mailmanny](https://mailmanny.com). Use it to:
+The official Node.js SDK and CLI for [Mailmanny](https://www.mailmanny.com). Use it to:
 
 - send transactional email written in [React Email](https://react.email),
 - add people to your audiences (Mailchimp-style audience keys),
@@ -187,7 +187,7 @@ You can also push from code with `mm.templates.push({ externalId: "welcome", rea
 
 ```ts
 new Mailmanny(apiKey, {
-  baseUrl: "https://mailmanny.com", // or MAILMANNY_BASE_URL
+  baseUrl: "https://www.mailmanny.com", // or MAILMANNY_BASE_URL
   maxRetries: 2, // 429 / 5xx / network, for GET, PUT, DELETE and POSTs with an idempotency key
   timeout: 30_000,
   fetch: customFetch,
@@ -199,4 +199,11 @@ new Mailmanny(apiKey, {
 API keys are secret. Use them from your server only. The API rejects browser requests. Revoke a leaked key in
 **Settings → API keys**; it stops working right away.
 
-Full docs: https://mailmanny.com/docs
+## Using an AI coding agent?
+
+Point it at https://www.mailmanny.com/llms.txt. It's the docs index in the [llms.txt](https://llmstxt.org) format, with
+a link to every docs page as Markdown (add `.md` to any docs URL, e.g. https://www.mailmanny.com/docs/sending.md).
+https://www.mailmanny.com/llms-full.txt has every page in one file, and
+https://www.mailmanny.com/docs/ai-agents has a ready-made setup prompt.
+
+Full docs: https://www.mailmanny.com/docs
