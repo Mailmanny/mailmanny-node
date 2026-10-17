@@ -3,6 +3,7 @@
 #   - package.json's version is higher than npm's latest → publish that version (a manual minor/major bump);
 #   - otherwise, if anything but .github/ changed since the last release tag → publish npm's latest + 1 patch
 #     (package.json is bumped in this run only; the build writes src/version.ts from it);
+#   - package.json's version is npm's latest but has no tag yet (published by hand) → only tag + GitHub release;
 #   - otherwise → nothing to release.
 # Uses npm trusted publishing (OIDC): no npm token is stored anywhere, and npm attaches a provenance attestation linking
 # the package to this workflow run. Configured on npmjs.com → mailmanny → Settings → Trusted publishing: GitHub Actions,
@@ -47,6 +48,7 @@ jobs:
           if [ -z "$LATEST" ]; then
             # npm can only trust this workflow for a package that exists: the very first version is published by hand.
             echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "release=false" >> "$GITHUB_OUTPUT"
             echo "::notice::mailmanny isn't on npm yet. Publish the first version by hand, then set up trusted publishing."
             exit 0
           fi
@@ -55,10 +57,18 @@ jobs:
           if [ "$HIGHER" = "yes" ]; then
             VERSION="$PKG"
             echo "package.json asks for $VERSION (npm has $LATEST)."
+          elif [ "$PKG" = "$LATEST" ] && ! git rev-parse -q --verify "refs/tags/v$LATEST" >/dev/null; then
+            # This version went to npm by hand (e.g. while trusted publishing was failing): tag it, don't publish again.
+            echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "$LATEST is on npm but has no tag: tagging it."
+            exit 0
           else
             LAST_TAG="v$LATEST"
             if git rev-parse -q --verify "refs/tags/$LAST_TAG" >/dev/null && git diff --quiet "$LAST_TAG" HEAD -- . ':(exclude).github'; then
               echo "publish=false" >> "$GITHUB_OUTPUT"
+              echo "release=false" >> "$GITHUB_OUTPUT"
               echo "Nothing in the SDK changed since $LAST_TAG; nothing to release."
               exit 0
             fi
@@ -68,6 +78,7 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "release=true" >> "$GITHUB_OUTPUT"
 
       - if: steps.version.outputs.publish == 'true'
         run: npm install --no-audit --no-fund
@@ -83,7 +94,7 @@ jobs:
         name: Publish to npm
         run: npm publish --access public
 
-      - if: steps.version.outputs.publish == 'true'
+      - if: steps.version.outputs.release == 'true'
         name: Tag and create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}

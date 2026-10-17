@@ -1,6 +1,6 @@
 {
   "name": "mailmanny",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official Node.js SDK and CLI for Mailmanny: send React Email, grow audiences, push templates.",
   "license": "MIT",
   "type": "module",
